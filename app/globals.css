@@ -1,0 +1,155 @@
+@import "tailwindcss";
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+  }
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+/* 3D Grocery Background */
+.grocery-bg {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.grocery-item-3d {
+  position: absolute;
+  opacity: 0.08;
+  animation: float 20s infinite ease-in-out;
+}
+
+.grocery-item-3d:nth-child(1) {
+  top: 10%;
+  left: 5%;
+  width: 120px;
+  height: 120px;
+  background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%);
+  border-radius: 50% 40% 50% 40%;
+  transform: rotate(45deg) perspective(500px) rotateY(-15deg);
+  box-shadow: 0 20px 40px rgba(255, 107, 107, 0.3);
+  animation-delay: 0s;
+}
+
+.grocery-item-3d:nth-child(2) {
+  top: 20%;
+  right: 10%;
+  width: 100px;
+  height: 100px;
+  background: linear-gradient(135deg, #4ecdc4 0%, #44a08d 100%);
+  border-radius: 30% 50% 30% 50%;
+  transform: rotate(-30deg) perspective(500px) rotateY(20deg);
+  box-shadow: 0 20px 40px rgba(78, 205, 196, 0.3);
+  animation-delay: 2s;
+}
+
+.grocery-item-3d:nth-child(3) {
+  bottom: 15%;
+  left: 8%;
+  width: 140px;
+  height: 140px;
+  background: linear-gradient(135deg, #ffe66d 0%, #ffd93d 100%);
+  border-radius: 50%;
+  transform: rotate(60deg) perspective(500px) rotateX(15deg);
+  box-shadow: 0 20px 40px rgba(255, 230, 109, 0.3);
+  animation-delay: 4s;
+}
+
+.grocery-item-3d:nth-child(4) {
+  bottom: 25%;
+  right: 15%;
+  width: 90px;
+  height: 90px;
+  background: linear-gradient(135deg, #a8e6cf 0%, #88d8a3 100%);
+  border-radius: 40% 30% 50% 40%;
+  transform: rotate(-45deg) perspective(500px) rotateY(-10deg);
+  box-shadow: 0 20px 40px rgba(168, 230, 207, 0.3);
+  animation-delay: 6s;
+}
+
+.grocery-item-3d:nth-child(5) {
+  top: 50%;
+  left: 3%;
+  width: 110px;
+  height: 110px;
+  background: linear-gradient(135deg, #ff8b94 0%, #ff6b9d 100%);
+  border-radius: 35% 45% 35% 45%;
+  transform: rotate(30deg) perspective(500px) rotateX(-20deg);
+  box-shadow: 0 20px 40px rgba(255, 139, 148, 0.3);
+  animation-delay: 8s;
+}
+
+.grocery-item-3d:nth-child(6) {
+  top: 60%;
+  right: 5%;
+  width: 130px;
+  height: 130px;
+  background: linear-gradient(135deg, #c7ceea 0%, #a8b5e0 100%);
+  border-radius: 50% 30% 50% 30%;
+  transform: rotate(-60deg) perspective(500px) rotateY(15deg);
+  box-shadow: 0 20px 40px rgba(199, 206, 234, 0.3);
+  animation-delay: 10s;
+}
+
+.grocery-item-3d:nth-child(7) {
+  bottom: 40%;
+  left: 12%;
+  width: 85px;
+  height: 85px;
+  background: linear-gradient(135deg, #ffd3a5 0%, #fd9853 100%);
+  border-radius: 45% 35% 45% 35%;
+  transform: rotate(75deg) perspective(500px) rotateX(10deg);
+  box-shadow: 0 20px 40px rgba(255, 211, 165, 0.3);
+  animation-delay: 12s;
+}
+
+.grocery-item-3d:nth-child(8) {
+  top: 30%;
+  left: 50%;
+  width: 95px;
+  height: 95px;
+  background: linear-gradient(135deg, #95e1d3 0%, #6bcfb8 100%);
+  border-radius: 30% 50% 30% 50%;
+  transform: rotate(-20deg) perspective(500px) rotateY(-25deg);
+  box-shadow: 0 20px 40px rgba(149, 225, 211, 0.3);
+  animation-delay: 14s;
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0px) translateX(0px) rotate(0deg);
+  }
+  25% {
+    transform: translateY(-20px) translateX(10px) rotate(5deg);
+  }
+  50% {
+    transform: translateY(-10px) translateX(-10px) rotate(-5deg);
+  }
+  75% {
+    transform: translateY(-30px) translateX(5px) rotate(3deg);
+  }
+}
