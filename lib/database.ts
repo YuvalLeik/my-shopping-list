@@ -1,12 +1,39 @@
 import { supabase } from "./supabase";
 import { GroceryItem, GroceryList } from "@/app/types";
+import { getActiveUserId } from "./family-users";
 
-// Get current user ID
-export async function getUserId(): Promise<string | null> {
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  return user?.id || null;
+// Get current local user ID
+function getLocalUserId(): string {
+  if (typeof window === "undefined") {
+    throw new Error("Cannot get user ID on server");
+  }
+  const userId = getActiveUserId();
+  if (!userId) {
+    throw new Error("No active user selected");
+  }
+  return userId;
+}
+
+// Get list ID for a specific date
+export async function getListId(date: string): Promise<string | null> {
+  const userId = getLocalUserId();
+
+  const { data: list, error } = await supabase
+    .from("grocery_lists")
+    .select("id")
+    .eq("local_user_id", userId)
+    .eq("date", date)
+    .eq("completed", false)
+    .single();
+
+  if (error) {
+    if (error.code === "PGRST116") {
+      return null; // No list found
+    }
+    throw error;
+  }
+
+  return list?.id || null;
 }
 
 // Save or update a grocery list
@@ -15,20 +42,19 @@ export async function saveGroceryList(
   items: GroceryItem[],
   completed: boolean = false
 ): Promise<void> {
-  const userId = await getUserId();
-  if (!userId) throw new Error("User not authenticated");
+  const userId = getLocalUserId();
 
   // First, check if a list exists for this date
   const { data: existingList } = await supabase
     .from("grocery_lists")
     .select("id")
-    .eq("user_id", userId)
+    .eq("local_user_id", userId)
     .eq("date", date)
     .eq("completed", false)
     .single();
 
   const listData = {
-    user_id: userId,
+    local_user_id: userId,
     date,
     completed,
     completed_at: completed ? new Date().toISOString() : null,
@@ -68,6 +94,11 @@ export async function saveGroceryList(
       category: item.category || null,
       purchased: item.purchased,
       image: item.image || null,
+      unit_price: item.unit_price || null,
+      line_total: item.line_total || null,
+      currency: item.currency || 'ILS',
+      price_source: item.price_source || null,
+      receipt_id: item.receipt_id || null,
     }));
 
     const { error } = await supabase
@@ -81,20 +112,18 @@ export async function saveGroceryList(
 export async function loadGroceryList(
   date: string
 ): Promise<GroceryList | null> {
-  const userId = await getUserId();
-  if (!userId) throw new Error("User not authenticated");
+  const userId = getLocalUserId();
 
   const { data: list, error: listError } = await supabase
     .from("grocery_lists")
     .select("*")
-    .eq("user_id", userId)
+    .eq("local_user_id", userId)
     .eq("date", date)
     .eq("completed", false)
     .single();
 
   if (listError) {
     if (listError.code === "PGRST116") {
-      // No list found - return null
       return null;
     }
     throw listError;
@@ -118,6 +147,11 @@ export async function loadGroceryList(
       category: item.category || "",
       purchased: item.purchased,
       image: item.image || undefined,
+      unit_price: item.unit_price || undefined,
+      line_total: item.line_total || undefined,
+      currency: item.currency || undefined,
+      price_source: item.price_source || undefined,
+      receipt_id: item.receipt_id || undefined,
     })),
     completed: list.completed,
     completedAt: list.completed_at || undefined,
@@ -126,8 +160,7 @@ export async function loadGroceryList(
 
 // Mark a list as completed
 export async function completeGroceryList(date: string): Promise<void> {
-  const userId = await getUserId();
-  if (!userId) throw new Error("User not authenticated");
+  const userId = getLocalUserId();
 
   const { error } = await supabase
     .from("grocery_lists")
@@ -136,7 +169,7 @@ export async function completeGroceryList(date: string): Promise<void> {
       completed_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     })
-    .eq("user_id", userId)
+    .eq("local_user_id", userId)
     .eq("date", date)
     .eq("completed", false);
 
@@ -145,13 +178,12 @@ export async function completeGroceryList(date: string): Promise<void> {
 
 // Get all completed lists
 export async function getCompletedLists(): Promise<GroceryList[]> {
-  const userId = await getUserId();
-  if (!userId) throw new Error("User not authenticated");
+  const userId = getLocalUserId();
 
   const { data: lists, error } = await supabase
     .from("grocery_lists")
     .select("*")
-    .eq("user_id", userId)
+    .eq("local_user_id", userId)
     .eq("completed", true)
     .order("completed_at", { ascending: false });
 
@@ -176,6 +208,11 @@ export async function getCompletedLists(): Promise<GroceryList[]> {
           category: item.category || "",
           purchased: item.purchased,
           image: item.image || undefined,
+          unit_price: item.unit_price || undefined,
+          line_total: item.line_total || undefined,
+          currency: item.currency || undefined,
+          price_source: item.price_source || undefined,
+          receipt_id: item.receipt_id || undefined,
         })),
         completed: list.completed,
         completedAt: list.completed_at || undefined,
@@ -188,22 +225,19 @@ export async function getCompletedLists(): Promise<GroceryList[]> {
 
 // Delete a completed list
 export async function deleteCompletedList(date: string): Promise<void> {
-  const userId = await getUserId();
-  if (!userId) throw new Error("User not authenticated");
+  const userId = getLocalUserId();
 
   // Find the list
   const { data: list } = await supabase
     .from("grocery_lists")
     .select("id")
-    .eq("user_id", userId)
+    .eq("local_user_id", userId)
     .eq("date", date)
     .eq("completed", true)
     .single();
 
   if (list) {
-    // Delete items first (cascade should handle this, but being explicit)
     await supabase.from("grocery_items").delete().eq("list_id", list.id);
-    // Delete the list
     await supabase.from("grocery_lists").delete().eq("id", list.id);
   }
 }
@@ -213,11 +247,10 @@ export async function saveItemImage(
   itemName: string,
   imageData: string
 ): Promise<void> {
-  const userId = await getUserId();
-  if (!userId) throw new Error("User not authenticated");
+  const userId = getLocalUserId();
 
   const { error } = await supabase.from("item_images").upsert({
-    user_id: userId,
+    local_user_id: userId,
     item_name: itemName.toLowerCase(),
     image_data: imageData,
   });
@@ -229,13 +262,13 @@ export async function saveItemImage(
 export async function getItemImage(
   itemName: string
 ): Promise<string | undefined> {
-  const userId = await getUserId();
+  const userId = getActiveUserId();
   if (!userId) return undefined;
 
   const { data } = await supabase
     .from("item_images")
     .select("image_data")
-    .eq("user_id", userId)
+    .eq("local_user_id", userId)
     .eq("item_name", itemName.toLowerCase())
     .single();
 
@@ -246,14 +279,14 @@ export async function getItemImage(
 export async function getAllItemNames(): Promise<
   Array<{ name: string; category: string; image?: string }>
 > {
-  const userId = await getUserId();
+  const userId = getActiveUserId();
   if (!userId) return [];
 
   // Get all lists for this user
   const { data: lists } = await supabase
     .from("grocery_lists")
     .select("id")
-    .eq("user_id", userId);
+    .eq("local_user_id", userId);
 
   if (!lists || lists.length === 0) return [];
 
@@ -288,7 +321,7 @@ export async function getAllItemNames(): Promise<
   const { data: images } = await supabase
     .from("item_images")
     .select("item_name, image_data")
-    .eq("user_id", userId);
+    .eq("local_user_id", userId);
 
   if (images) {
     for (const img of images) {

@@ -5,8 +5,11 @@ import GroceryItem from "./components/GroceryItem";
 import HistoricalLists from "./components/HistoricalLists";
 import ViewListModal from "./components/ViewListModal";
 import ChatBot from "./components/ChatBot";
-import Auth from "./components/Auth";
-import { supabase } from "@/lib/supabase";
+import Onboarding from "./components/Onboarding";
+import UsersScreen from "./components/UsersScreen";
+import Navigation from "./components/Navigation";
+import ManualPriceModal from "./components/ManualPriceModal";
+import { getFamilyUsers, getActiveUser, setActiveUserId, FamilyUser } from "@/lib/family-users";
 import {
   saveGroceryList,
   loadGroceryList,
@@ -16,6 +19,7 @@ import {
   saveItemImage,
   getItemImage,
   getAllItemNames,
+  getListId,
 } from "@/lib/database";
 import {
   GroceryItem as GroceryItemType,
@@ -101,9 +105,13 @@ const formatDate = (dateString: string) => {
   });
 };
 
+type View = "list" | "history" | "users";
+
 export default function Home() {
-  const [user, setUser] = useState<any>(null);
+  const [activeUser, setActiveUser] = useState<FamilyUser | null>(null);
   const [loading, setLoading] = useState(true);
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [currentView, setCurrentView] = useState<View>("list");
   const [currentDate, setCurrentDate] = useState<string>(getTodayDate());
   const [items, setItems] = useState<GroceryItemType[]>([]);
   const [completedLists, setCompletedLists] = useState<GroceryList[]>([]);
@@ -118,6 +126,8 @@ export default function Home() {
   const [showAutocomplete, setShowAutocomplete] = useState(false);
   const [hasShownCompletionPrompt, setHasShownCompletionPrompt] = useState(false);
   const [showChatBot, setShowChatBot] = useState(false);
+  const [showPriceUpload, setShowPriceUpload] = useState(false);
+  const [currentListId, setCurrentListId] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const autocompleteRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -125,7 +135,7 @@ export default function Home() {
 
   // Load data from database - defined BEFORE useEffects that use it
   const loadData = async () => {
-    if (!user) return;
+    if (!activeUser) return;
     
     try {
       // Load current list for today
@@ -149,32 +159,36 @@ export default function Home() {
     }
   };
 
-  // Check authentication status
+  // Initialize app - check for users and active user
   useEffect(() => {
-    const checkUser = async () => {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      setUser(user);
-      setLoading(false);
-    };
+    const init = async () => {
+      try {
+        const users = await getFamilyUsers();
+        if (users.length === 0) {
+          setShowOnboarding(true);
+          setLoading(false);
+          return;
+        }
 
-    checkUser();
-
-    // Listen for auth changes
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        // Reload data when user logs in (wait a bit for state to update)
-        setTimeout(() => {
-          loadData();
-        }, 100);
+        const active = await getActiveUser();
+        if (active) {
+          setActiveUser(active);
+        } else if (users.length > 0) {
+          // Set first user as active
+          setActiveUserId(users[0].id);
+          setActiveUser(users[0]);
+        }
+      } catch (error: any) {
+        console.error("Failed to initialize:", error);
+        // If table doesn't exist (migration not run), show onboarding
+        if (error?.code === "42P01" || error?.code === "PGRST116" || error?.message?.includes("does not exist") || error?.message?.includes("relation") || error?.message?.includes("table")) {
+          console.warn("local_users table not found. Please run MIGRATION_FAMILY_USERS.sql in Supabase SQL Editor.");
+          setShowOnboarding(true);
+        }
+        setLoading(false);
       }
-    });
-
-    return () => subscription.unsubscribe();
+    };
+    init();
   }, []);
 
   // Register Service Worker for PWA
@@ -208,16 +222,23 @@ export default function Home() {
     }
   };
 
-  // Load data when user is authenticated
+  // Load data when active user changes
   useEffect(() => {
-    if (user) {
+    if (activeUser) {
       loadData();
     }
-  }, [user]);
+  }, [activeUser]);
+
+  // Get current list ID when items or date changes
+  useEffect(() => {
+    if (activeUser && currentDate) {
+      getListId(currentDate).then(setCurrentListId).catch(console.error);
+    }
+  }, [activeUser, currentDate, items]);
 
   // Save current list to database whenever items change
   useEffect(() => {
-    if (!user) return;
+    if (!activeUser) return;
     
     const saveCurrentList = async () => {
       try {
@@ -230,11 +251,11 @@ export default function Home() {
     // Debounce saves to avoid too many database calls
     const timeoutId = setTimeout(saveCurrentList, 500);
     return () => clearTimeout(timeoutId);
-  }, [items, currentDate, user]);
+  }, [items, currentDate, activeUser]);
 
   // Check if all items are purchased and prompt user to complete the list
   useEffect(() => {
-    if (!user) return;
+    if (!activeUser) return;
     
     if (items.length > 0 && items.every((item) => item.purchased)) {
       // Check if this list is not already in completed lists
@@ -259,11 +280,11 @@ export default function Home() {
       // Reset the prompt flag if not all items are purchased
       setHasShownCompletionPrompt(false);
     }
-  }, [items, currentDate, completedLists, hasShownCompletionPrompt, user]);
+  }, [items, currentDate, completedLists, hasShownCompletionPrompt, activeUser]);
 
   // Load autocomplete data from database
   useEffect(() => {
-    if (!user) return;
+    if (!activeUser) return;
     
     const loadAutocompleteData = async () => {
       try {
@@ -332,7 +353,7 @@ export default function Home() {
     };
     
     loadAutocompleteData();
-  }, [items, completedLists, user]);
+  }, [items, completedLists, activeUser]);
 
   // Filter autocomplete suggestions based on input
   useEffect(() => {
@@ -382,6 +403,20 @@ export default function Home() {
     return filtered;
   }, [items, searchQuery, sortOption]);
 
+  // Handle onboarding completion
+  const handleOnboardingComplete = (user: FamilyUser) => {
+    setActiveUser(user);
+    setShowOnboarding(false);
+  };
+
+  // Handle user switch
+  const handleUserSwitch = async (user: FamilyUser) => {
+    setActiveUser(user);
+    setCurrentView("list");
+    // Reload data for new user
+    await loadData();
+  };
+
   // Show auth screen if not authenticated (AFTER all hooks)
   if (loading) {
     return (
@@ -391,8 +426,16 @@ export default function Home() {
     );
   }
 
-  if (!user) {
-    return <Auth onAuthSuccess={() => setUser({ id: "temp" })} />;
+  if (showOnboarding) {
+    return <Onboarding onComplete={handleOnboardingComplete} />;
+  }
+
+  if (!activeUser) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-lg">טוען...</div>
+      </div>
+    );
   }
 
   // Handle image upload
@@ -624,9 +667,18 @@ export default function Home() {
       </div>
 
       <div className="relative z-10 mx-auto max-w-7xl">
-        <div className="flex flex-col lg:grid lg:grid-cols-4 gap-4 lg:gap-6">
+        <div className="flex flex-col lg:flex-row gap-4 lg:gap-6">
+          {/* Navigation Sidebar (Desktop) */}
+          <Navigation
+            currentView={currentView}
+            onViewChange={setCurrentView}
+            onUserSwitch={handleUserSwitch}
+          />
+
           {/* Main Content */}
-          <div className="lg:col-span-3 order-1 lg:order-1">
+          <div className="flex-1 lg:ml-0 pb-16 lg:pb-0">
+            {currentView === "list" && (
+              <>
             {/* Header */}
             <div className="mb-4 sm:mb-8 text-center">
               <h1 className="mb-2 text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900">
@@ -855,6 +907,14 @@ export default function Home() {
                 </div>
               </div>
               <div className="mt-3 sm:mt-4 flex flex-col sm:flex-row gap-2 sm:gap-3">
+                {items.length > 0 && (
+                  <button
+                    onClick={() => setShowPriceUpload(true)}
+                    className="rounded-lg border border-blue-300 bg-white px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium text-blue-600 transition-colors hover:bg-blue-50"
+                  >
+                    Add Prices
+                  </button>
+                )}
                 {purchasedCount > 0 && (
                   <button
                     onClick={handleClearPurchased}
@@ -914,17 +974,22 @@ export default function Home() {
                 </div>
               )}
             </div>
-          </div>
+          </>
+            )}
 
-          {/* Sidebar - Historical Lists */}
-          <div className="lg:col-span-1 order-2 lg:order-2">
-            <div className="sticky top-4 sm:top-8">
-              <HistoricalLists
-                completedLists={completedLists}
-                onSelectList={handleSelectList}
-                onDeleteList={handleDeleteList}
-              />
-            </div>
+            {currentView === "history" && (
+              <div className="p-4 sm:p-6">
+                <HistoricalLists
+                  completedLists={completedLists}
+                  onSelectList={handleSelectList}
+                  onDeleteList={handleDeleteList}
+                />
+              </div>
+            )}
+
+            {currentView === "users" && (
+              <UsersScreen onUserSwitch={handleUserSwitch} />
+            )}
           </div>
         </div>
       </div>
@@ -984,6 +1049,27 @@ export default function Home() {
             />
           </svg>
         </button>
+      )}
+
+      {/* Manual Price Entry Modal */}
+      {showPriceUpload && (
+        <ManualPriceModal
+          isOpen={showPriceUpload}
+          onClose={() => setShowPriceUpload(false)}
+          listId={currentListId}
+          items={items}
+          onPricesApplied={async () => {
+            // Reload current list to get updated prices
+            try {
+              const updatedList = await loadGroceryList(currentDate);
+              if (updatedList) {
+                setItems(updatedList.items);
+              }
+            } catch (error) {
+              console.error("Failed to reload list:", error);
+            }
+          }}
+        />
       )}
     </div>
   );

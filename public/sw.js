@@ -2,7 +2,7 @@
 const CACHE_NAME = 'grocery-list-v1';
 const urlsToCache = [
   '/',
-  '/manifest.json',
+  '/manifest.webmanifest',
 ];
 
 self.addEventListener('install', (event) => {

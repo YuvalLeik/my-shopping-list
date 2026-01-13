@@ -56,6 +56,16 @@ export default function GroceryItem({
                   {CATEGORY_TRANSLATIONS[item.category]}
                 </div>
               )}
+              {item.unit_price !== undefined && item.unit_price !== null && (
+                <div className="mt-0.5 sm:mt-1 text-xs sm:text-sm font-medium text-green-600">
+                  ₪{item.unit_price.toFixed(2)}
+                  {item.line_total !== undefined && item.line_total !== null && item.line_total !== item.unit_price * item.quantity && (
+                    <span className="text-gray-500 mr-1">
+                      (סה"כ: ₪{item.line_total.toFixed(2)})
+                    </span>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         </div>
