@@ -165,7 +165,7 @@ export async function checkAndBackfill(): Promise<void> {
   const { data: lists } = await supabase
     .from("grocery_lists")
     .select("*, grocery_items(*)")
-    .eq("user_id", userId)
+    .eq("local_user_id", userId)
     .eq("completed", true)
     .order("completed_at", { ascending: true });
 
@@ -191,7 +191,7 @@ export async function checkAndBackfill(): Promise<void> {
   >();
 
   for (const list of lists) {
-    const listDate = new Date(list.completed_at || list.date);
+    const listDate = new Date(list.completed_at || list.title);
     const items = (list as any).grocery_items || [];
 
     for (const item of items) {

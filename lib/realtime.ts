@@ -14,7 +14,7 @@ function rowToItem(row: any): GroceryItem {
     quantity: row.quantity,
     category: row.category || "",
     purchased: row.purchased,
-    image: row.image || undefined,
+    image: row.image_url || undefined,
   };
 }
 

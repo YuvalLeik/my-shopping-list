@@ -16,8 +16,8 @@ export async function getOrCreateListId(date: string): Promise<string> {
   const { data: existing } = await supabase
     .from("grocery_lists")
     .select("id")
-    .eq("user_id", userId)
-    .eq("date", date)
+    .eq("local_user_id", userId)
+    .eq("title", date)
     .eq("completed", false)
     .single();
 
@@ -26,10 +26,9 @@ export async function getOrCreateListId(date: string): Promise<string> {
   const { data, error } = await supabase
     .from("grocery_lists")
     .insert({
-      user_id: userId,
-      date,
+      local_user_id: userId,
+      title: date,
       completed: false,
-      updated_at: new Date().toISOString(),
     })
     .select("id")
     .single();
@@ -53,7 +52,7 @@ export async function addItemToDb(
       quantity: item.quantity,
       category: item.category || null,
       purchased: item.purchased,
-      image: item.image || null,
+      image_url: item.image || null,
     })
     .select("id")
     .single();
@@ -66,12 +65,12 @@ export async function updateItemInDb(
   itemId: string,
   changes: Partial<Pick<GroceryItem, "name" | "quantity" | "category" | "purchased" | "image">>
 ): Promise<void> {
-  const update: Record<string, any> = { updated_at: new Date().toISOString() };
+  const update: Record<string, any> = {};
   if (changes.name !== undefined) update.name = changes.name;
   if (changes.quantity !== undefined) update.quantity = changes.quantity;
   if (changes.category !== undefined) update.category = changes.category || null;
   if (changes.purchased !== undefined) update.purchased = changes.purchased;
-  if (changes.image !== undefined) update.image = changes.image || null;
+  if (changes.image !== undefined) update.image_url = changes.image || null;
 
   const { error } = await supabase
     .from("grocery_items")
@@ -103,17 +102,16 @@ export async function saveGroceryList(
   const { data: existingList } = await supabase
     .from("grocery_lists")
     .select("id")
-    .eq("user_id", userId)
-    .eq("date", date)
+    .eq("local_user_id", userId)
+    .eq("title", date)
     .eq("completed", false)
     .single();
 
-  const listData = {
-    user_id: userId,
-    date,
+  const listData: Record<string, any> = {
+    local_user_id: userId,
+    title: date,
     completed,
     completed_at: completed ? new Date().toISOString() : null,
-    updated_at: new Date().toISOString(),
   };
 
   let listId: string;
@@ -145,7 +143,7 @@ export async function saveGroceryList(
       quantity: item.quantity,
       category: item.category || null,
       purchased: item.purchased,
-      image: item.image || null,
+      image_url: item.image || null,
     }));
 
     const { error } = await supabase
@@ -164,8 +162,8 @@ export async function loadGroceryList(
   const { data: list, error: listError } = await supabase
     .from("grocery_lists")
     .select("*")
-    .eq("user_id", userId)
-    .eq("date", date)
+    .eq("local_user_id", userId)
+    .eq("title", date)
     .eq("completed", false)
     .single();
 
@@ -184,14 +182,14 @@ export async function loadGroceryList(
 
   return {
     listId: list.id,
-    date: list.date,
+    date: list.title,
     items: items.map((item) => ({
       id: item.id,
       name: item.name,
       quantity: item.quantity,
       category: item.category || "",
       purchased: item.purchased,
-      image: item.image || undefined,
+      image: item.image_url || undefined,
     })),
     completed: list.completed,
     completedAt: list.completed_at || undefined,
@@ -207,10 +205,9 @@ export async function completeGroceryList(date: string): Promise<void> {
     .update({
       completed: true,
       completed_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
     })
-    .eq("user_id", userId)
-    .eq("date", date)
+    .eq("local_user_id", userId)
+    .eq("title", date)
     .eq("completed", false);
 
   if (error) throw error;
@@ -223,7 +220,7 @@ export async function getCompletedLists(): Promise<GroceryList[]> {
   const { data: lists, error } = await supabase
     .from("grocery_lists")
     .select("*, grocery_items(*)")
-    .eq("user_id", userId)
+    .eq("local_user_id", userId)
     .eq("completed", true)
     .order("completed_at", { ascending: false });
 
@@ -231,7 +228,7 @@ export async function getCompletedLists(): Promise<GroceryList[]> {
   if (!lists || lists.length === 0) return [];
 
   return lists.map((list: any) => ({
-    date: list.date,
+    date: list.title,
     items: (list.grocery_items || [])
       .sort((a: any, b: any) => (a.created_at > b.created_at ? 1 : -1))
       .map((item: any) => ({
@@ -240,7 +237,7 @@ export async function getCompletedLists(): Promise<GroceryList[]> {
         quantity: item.quantity,
         category: item.category || "",
         purchased: item.purchased,
-        image: item.image || undefined,
+        image: item.image_url || undefined,
       })),
     completed: list.completed,
     completedAt: list.completed_at || undefined,
@@ -254,8 +251,8 @@ export async function deleteCompletedList(date: string): Promise<void> {
   const { data: list } = await supabase
     .from("grocery_lists")
     .select("id")
-    .eq("user_id", userId)
-    .eq("date", date)
+    .eq("local_user_id", userId)
+    .eq("title", date)
     .eq("completed", true)
     .single();
 
@@ -306,7 +303,7 @@ export async function getAllItemNames(): Promise<
   const { data: lists } = await supabase
     .from("grocery_lists")
     .select("id")
-    .eq("user_id", userId);
+    .eq("local_user_id", userId);
 
   if (!lists || lists.length === 0) return [];
 
