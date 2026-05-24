@@ -1,5 +1,6 @@
-import type { Metadata, Viewport } from "next";
+﻿import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { ToastProvider } from "./components/Toast";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -13,13 +14,13 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "רשימת קניות",
-  description: "ארגן את הקניות שלך בקלות",
+  title: "╫¿╫⌐╫Ö╫₧╫¬ ╫º╫á╫Ö╫ò╫¬",
+  description: "╫É╫¿╫Æ╫ƒ ╫É╫¬ ╫ö╫º╫á╫Ö╫ò╫¬ ╫⌐╫£╫Ü ╫æ╫º╫£╫ò╫¬",
   manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "רשימת קניות",
+    title: "╫¿╫⌐╫Ö╫₧╫¬ ╫º╫á╫Ö╫ò╫¬",
   },
   icons: {
     apple: "/icon-192.png",
@@ -44,7 +45,7 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        {children}
+        <ToastProvider>{children}</ToastProvider>
       </body>
     </html>
   );

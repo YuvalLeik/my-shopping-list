@@ -1,6 +1,7 @@
 "use client";
 
 import { GroceryList } from "../types";
+import { formatDate } from "../lib/date-utils";
 
 interface HistoricalListsProps {
   completedLists: GroceryList[];
@@ -13,14 +14,6 @@ export default function HistoricalLists({
   onSelectList,
   onDeleteList,
 }: HistoricalListsProps) {
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString("he-IL", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-    });
-  };
 
   if (completedLists.length === 0) {
     return (

@@ -1,7 +1,7 @@
 "use client";
 
-import { GroceryList } from "../types";
-import { CATEGORY_TRANSLATIONS } from "../types";
+import { GroceryList, CATEGORY_TRANSLATIONS } from "../types";
+import { formatDate } from "../lib/date-utils";
 
 interface ViewListModalProps {
   list: GroceryList;
@@ -9,14 +9,6 @@ interface ViewListModalProps {
 }
 
 export default function ViewListModal({ list, onClose }: ViewListModalProps) {
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString("he-IL", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-    });
-  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-2 sm:p-4">
